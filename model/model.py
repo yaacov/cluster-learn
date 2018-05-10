@@ -1,15 +1,17 @@
 #!/bin/env python3
 
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error
 from math import sqrt
+from random import uniform
+from sklearn.metrics import mean_squared_error
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
-import argparse
+
 
 from create_data import create_data
 
@@ -40,18 +42,18 @@ def main():
         plot_predictions(predictions)
 
 
-def split_data(type, inputData, labelData):
-    numOfRows = inputData.shape[0]
+def split_data(inputData, labelData, data_fraction=TRAINING_FRACTION):
+    """Take big array of data and return a fraction of the data raws
+    from random place in the data.
+    """
+    numOfRows = int(inputData.shape[0])
+    numOfOutputRows = int(inputData.shape[0] * data_fraction)
+    startRow = uniform(0, numOfRows - numOfOutputRows)
 
-    if type == 'training':
-        trainX = inputData[:int(numOfRows * TRAINING_FRACTION)]
-        trainY = labelData[:int(numOfRows * TRAINING_FRACTION)]
-        return trainX, trainY
+    inputDataOut = inputData[startRow:startRow + numOfOutputRows]
+    labelDataOut = labelData[startRow:startRow + numOfOutputRows]
 
-    if type == 'test':
-        testX = inputData[int(numOfRows * TRAINING_FRACTION):]
-        testY = labelData[int(numOfRows * TRAINING_FRACTION):]
-        return testX, testY
+    return inputDataOut, labelDataOut
 
 
 def train_model(nb_epoch, nb_batch):
@@ -64,7 +66,7 @@ def train_model(nb_epoch, nb_batch):
     print("Input Shape: " + str(scaled_input.shape))
     print("Label shape: " + str(scaled_labels.shape))
 
-    trainX, trainY = split_data('training', scaled_input, scaled_labels)
+    trainX, trainY = split_data(scaled_input, scaled_labels)
 
     # reshape data from [samples, features] to [samples, timesteps, features]
     trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
@@ -111,7 +113,7 @@ def evaluate_predictions(model):
 
     scaled_input, scaled_labels, _ = scale_data(dfX, dfY)
 
-    testX, testY = split_data('test', scaled_input, scaled_labels)
+    testX, testY = split_data(scaled_input, scaled_labels)
     predictions = list()
     # make prediction
     for sample in testX:
@@ -168,7 +170,7 @@ def plot_predictions(predictions):
     dfX = np.genfromtxt('../raw_input.csv', delimiter=',')
     dfY = np.genfromtxt('../raw_label.csv', delimiter=',')
 
-    testX, testY = split_data('test', dfX, dfY)
+    testX, testY = split_data(dfX, dfY)
 
     for i in range(len(predictions)):
         err = sqrt(mean_squared_error(testY[i, :], predictions[i]))
